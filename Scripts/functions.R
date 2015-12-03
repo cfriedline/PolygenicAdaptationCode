@@ -11,48 +11,48 @@ PolygenicAdaptationFunction <- function ( gwas.data.file , freqs.file , env.var.
 	env.var.data <- lapply ( env.var.data , function ( ENV.VAR ) ENV.VAR [ order ( ENV.VAR$CLST ) , ] )
 	match.pop <- read.table ( match.pop.file , header = T )
 	dir.create ( paste ( path , "/Output" , sep = "" ) )
-	
+
 	# sanity checks
 	if ( any ( unlist ( lapply ( env.var.data , function ( y ) lapply ( env.var.data , function ( x ) !x$CLST %in% y$CLST ) ) ) ) ) stop ( "Environmental variable datasets differ in the number of populations." )
 	if ( any ( !freqs$CLST %in% env.var.data [[ 1 ]]$CLST ) ) stop ( "Frequency dataset has data for populations not present in environmental variable datasets.")
 	if ( any ( !env.var.data [[ 1 ]]$CLST %in% freqs$CLST ) ) stop ( "Environmental variable dataset has data for populations not present frequency dataset.")
 	if ( any ( !gwas.data$SNP %in% freqs$SNP ) ) stop ( "GWAS dataset contains SNPs that are not in the frequency dataset.")
 	if ( any ( !freqs$SNP %in% gwas.data$SNP ) ) stop ( "GWAS dataset contains SNPs that are not in the frequency dataset." )
-	
-	
+
+
 	if ( check.allele.orientation == T ) gwas.data <- MatchAlleles ( gwas.data , freqs  )
 	save ( gwas.data , file = paste ( path , "/GWAS.file.RData" , sep = "" ) )
-	
-	
+
+
 	# get minor allele frequency from effect allele frequency, and flip effects for minor alleles
-	gwas.data$MAF <- ifelse ( gwas.data$FRQ > 0.5 , 1 - gwas.data$FRQ , gwas.data$FRQ )	
-	gwas.data$MA.EFF <- ifelse ( gwas.data$FRQ > 0.5 , - gwas.data$EFF , gwas.data$EFF )	
-	match.pop$MAF <- ifelse ( match.pop$FRQ > 0.5 , 1 - match.pop$FRQ , match.pop$FRQ )	
-	
-	
-	
-	# add relevant matching columns that are not in gwas data 
+	gwas.data$MAF <- ifelse ( gwas.data$FRQ > 0.5 , 1 - gwas.data$FRQ , gwas.data$FRQ )
+	gwas.data$MA.EFF <- ifelse ( gwas.data$FRQ > 0.5 , - gwas.data$EFF , gwas.data$EFF )
+	match.pop$MAF <- ifelse ( match.pop$FRQ > 0.5 , 1 - match.pop$FRQ , match.pop$FRQ )
+
+
+
+	# add relevant matching columns that are not in gwas data
 	gwas.data <- cbind ( gwas.data , match.pop [ match ( gwas.data$SNP , match.pop$SNP ) , match.categories [ !match.categories %in% names ( gwas.data ) ] ,drop = FALSE] )
 
 	# assign SNPs to appropriate bins in contingency table
-	x <- mapply ( function ( CATS , BINS ) 
-				cut ( gwas.data [ , CATS ] , breaks = BINS , include.lowest = T ) ,  
+	x <- mapply ( function ( CATS , BINS )
+				cut ( gwas.data [ , CATS ] , breaks = BINS , include.lowest = T ) ,
 		   CATS = match.categories , BINS = match.bins , SIMPLIFY = FALSE )
 	names ( x ) <- bin.names <-  paste ( match.categories , ".BINS" ,sep = "" )
 	gwas.data <- cbind ( gwas.data , x )
-		
-	y <- mapply ( function ( CATS , BINS ) 
-				cut ( match.pop [ , CATS ] , breaks = BINS , include.lowest = T ) ,  
+
+	y <- mapply ( function ( CATS , BINS )
+				cut ( match.pop [ , CATS ] , breaks = BINS , include.lowest = T ) ,
 		   CATS = match.categories , BINS = match.bins , SIMPLIFY = FALSE )
 	names ( y ) <- paste ( match.categories , ".BINS" , sep = "" )
 	match.pop <- cbind ( match.pop , y )
 	rm ( x , y )
-	
+
 	# initialize some handy things
 	pop.names <- env.var.data [[ 1 ]]$CLST
 	num.pops <- length ( pop.names )
-	
-	freqs <- freqs [ with ( freqs , order ( SNP , CLST ) ) , ] 
+
+	freqs <- freqs [ with ( freqs , order ( SNP , CLST ) ) , ]
 	#recover()
 	if ( file.exists ( paste ( path , "/uncenteredcovmat.Rdata" , sep = "" ) ) & load.cov.mat == T ) {
 		load ( paste ( path , "/uncenteredcovmat.Rdata" , sep = "" ) )
@@ -72,19 +72,19 @@ PolygenicAdaptationFunction <- function ( gwas.data.file , freqs.file , env.var.
 	#load(file = "CodeForRelease/HeightTest/uncentered.cov.mat.RData")
 	epsilon.freqs <- tapply ( freqs$FRQ , freqs$SNP , mean )
 	add.gen.var <- sum ( gwas.data$EFF [ order ( gwas.data$SNP ) ]^2  * epsilon.freqs * ( 1 - epsilon.freqs ) )
-	
-	the.stats <- CalcStats ( 
+
+	the.stats <- CalcStats (
 					freqs = matrix ( freqs$FRQ , nrow = num.pops ) ,
 					effects = gwas.data$EFF ,
-					env.var.data = env.var.data , 
+					env.var.data = env.var.data ,
 					var = add.gen.var ,
 					uncentered.cov.mat = uncentered.cov.mat ,
-					T.mat = T.mat , 
-					regional.off.center.cov.mats = regional.off.center.cov.mats , 
-					regional.off.center.T.mats = regional.off.center.T.mats , 
-					individual.off.center.cov.mats = individual.off.center.cov.mats , 
-					individual.off.center.T.mats = individual.off.center.T.mats , 
-					path = path , 
+					T.mat = T.mat ,
+					regional.off.center.cov.mats = regional.off.center.cov.mats ,
+					regional.off.center.T.mats = regional.off.center.T.mats ,
+					individual.off.center.cov.mats = individual.off.center.cov.mats ,
+					individual.off.center.T.mats = individual.off.center.T.mats ,
+					path = path ,
 					PCProj = PCProj ,
 					null = F
 				)
@@ -134,22 +134,22 @@ GetOffCovMats <- function ( env.var.data , uncentered.cov.mat , effects , freqs 
 	add.vars.individual <- list ()
 	k <- 1
 	for ( i in sort ( unique ( env.var.data$REG ) ) ) {
-		
+
 		num.pops <- nrow ( env.var.data )
 		num.center.pops <- sum ( env.var.data$REG != i )
 		j <- 1
-		mat.cols [[ k ]] <- lapply ( env.var.data$REG , function ( x ) 
-										if ( x != i ) { 
-											y <- rep ( - 1 / num.center.pops , num.pops ) ; 
-											y [ j ] <- ( num.center.pops - 1 ) / num.center.pops ; 
+		mat.cols [[ k ]] <- lapply ( env.var.data$REG , function ( x )
+										if ( x != i ) {
+											y <- rep ( - 1 / num.center.pops , num.pops ) ;
+											y [ j ] <- ( num.center.pops - 1 ) / num.center.pops ;
 											j <<- j + 1
-											return ( y ) 
-										} else { 
+											return ( y )
+										} else {
 											y <-  rep ( 0 , num.pops ) ;
 											y [ j ] <- 1 ;
 											j <<- j + 1 ;
-											return ( y ) 
-										} 
+											return ( y )
+										}
 		)
 		epsilons <- with ( subset ( freqs , freqs$CLST %in% env.var.data$CLST [ env.var.data$REG != i ] ) , tapply ( FRQ , SNP , mean ) )
 		add.vars.regional [[ k ]] <- 4 * sum ( epsilons * ( 1 - epsilons ) * effects ^2 )
@@ -162,32 +162,33 @@ GetOffCovMats <- function ( env.var.data , uncentered.cov.mat , effects , freqs 
 }
 
 NullStats <- function ( gwas.data , match.pop , env.var.data , pop.names , uncentered.cov.mat , F.inv , C.inv , T.mat , regional.off.center.cov.mats , regional.off.center.T.mats , individual.off.center.cov.mats , individual.off.center.T.mats , bin.names , reps , cycles , path , full.dataset.file ) {
-	
+    print("NullStats")
 	#recover()
 
 	num.pops <- length ( pop.names )
 	gwas.cont.table <- table ( gwas.data [ , bin.names ] )
 	my.null.bins <- which ( gwas.cont.table != 0 )
-	this.many <- reps * gwas.cont.table 
+	this.many <- reps * gwas.cont.table
 	null.stats <- list ()
 	for ( j in 1 : cycles ) {
+        print(j)
 		sampled.SNPs <- list ()
 		effects.list <- list ()
 		for ( i in 1 : nrow ( gwas.data ) ) {
-			
+
 			# sample a set of <reps> SNPs to match gwas SNP <i> such that they match its properties jointly for all matching categories
 			this.snp <- gwas.data [ i , bin.names ]
 			in.this.bin <- list ()
 			for ( k in 1 : length ( this.snp ) ) {
-					in.this.bin [[ k ]] <-  match.pop [ , bin.names [ k ] ] %in% this.snp [[ k ]] 
+					in.this.bin [[ k ]] <-  match.pop [ , bin.names [ k ] ] %in% this.snp [[ k ]]
 			}
 			in.this.bin <- do.call ( cbind , in.this.bin )
 			matched.SNPs <- match.pop [ rowSums ( in.this.bin ) == length ( bin.names ) , ]$SNP
 			sampled.SNPs [[ i ]] <- as.character ( sample ( matched.SNPs , reps , replace = T ) )
-			effects.list [[ i ]] <- ifelse ( 
-									match.pop [ match ( sampled.SNPs [[ i ]] , match.pop$SNP ) , ]$FRQ >= 0.5, 
+			effects.list [[ i ]] <- ifelse (
+									match.pop [ match ( sampled.SNPs [[ i ]] , match.pop$SNP ) , ]$FRQ >= 0.5,
 									gwas.data$MA.EFF [ i ] ,
-									 - gwas.data$MA.EFF [ i ] 
+									 - gwas.data$MA.EFF [ i ]
 					 )
 		}
 		all.sampled.SNPs <- unique ( unlist ( sampled.SNPs ) )
@@ -201,7 +202,7 @@ NullStats <- function ( gwas.data , match.pop , env.var.data , pop.names , uncen
 		SNP.table <- lapply ( sampled.SNPs , function ( x ) table ( x ) )
 		split.sampled.null.data <- split ( sampled.null.data , sampled.null.data$CLST )
 		null.SNP.mat <- do.call ( cbind , sampled.SNPs )
-		null.freqs <- lapply ( split.sampled.null.data , function ( this.pop ) 
+		null.freqs <- lapply ( split.sampled.null.data , function ( this.pop )
 				apply ( null.SNP.mat , 2 , function ( x ) as.numeric ( this.pop [ match ( x , this.pop$SNP ) , "FRQ" ] ) )
 				)
 		effects.mat <- do.call ( cbind , effects.list )
@@ -211,7 +212,7 @@ NullStats <- function ( gwas.data , match.pop , env.var.data , pop.names , uncen
 		null.vars <- rowSums ( effects.mat^2 * mean.null.freqs * ( 1 - mean.null.freqs ) )
 		null.freqs <- alply ( aperm ( laply ( null.freqs , function (x ) x ) , c ( 1, 3, 2 ) ) , 3 , function ( y ) y )
 		null.stats [[ j ]] <- mapply ( function ( FREQ , VAR , EFFECTS ) CalcStats ( FREQ , EFFECTS , env.var.data , VAR , uncentered.cov.mat , T.mat , regional.off.center.cov.mats , regional.off.center.T.mats , individual.off.center.cov.mats , individual.off.center.T.mats ) , FREQ = null.freqs , VAR = null.vars , EFFECTS = new.effects.list , SIMPLIFY = F )
-	}		
+	}
 	#recover()
 	Qx <- unlist ( lapply ( null.stats , function ( y ) lapply ( y , function ( x ) x [[ 1 ]] ) ) )
 	Fst.component <- unlist ( lapply ( null.stats , function ( y ) lapply ( y , function ( x ) x [[ 2 ]] ) ) )
@@ -241,21 +242,21 @@ PCAProjections <- function ( F.mat , cent.gvs , var , path) {
 }
 CalcStats <- function ( freqs , effects , env.var.data , var , uncentered.cov.mat , T.mat , regional.off.center.cov.mats , regional.off.center.T.mats , individual.off.center.cov.mats , individual.off.center.T.mats , path , PCProj = F , null = T ) {
 	#recover()
-	
+
 	# mean center and drop a pop
 	F.mat <- T.mat %*% ( uncentered.cov.mat ) %*% t ( T.mat )
 	F.inv <- solve ( F.mat )
 	C.inv <- solve ( t ( chol ( F.mat ) ) )
-	
+
 	# Qx and components
 	contribs <- t ( t ( freqs ) * effects )
 	std.contribs <- C.inv %*% T.mat %*% contribs
 	adj.cov.mat <- t ( std.contribs ) %*% std.contribs
 	Fst.comp <- sum ( diag ( adj.cov.mat ) ) / var
 	LD.comp <- sum ( adj.cov.mat [ row ( adj.cov.mat ) != col ( adj.cov.mat ) ] ) / var
-	Qx <- Fst.comp + LD.comp 
-	
-	
+	Qx <- Fst.comp + LD.comp
+
+
 	# env var stats
 	gvs <- freqs %*% effects
 	cent.gvs <- T.mat %*% gvs
@@ -269,18 +270,18 @@ CalcStats <- function ( freqs , effects , env.var.data , var , uncentered.cov.ma
 		PCAProjections ( F.mat , cent.gvs , var , path )
 	}
 	# regional Z scores
-	reg.Z.scores <- mapply ( function ( COV , TMAT ) 
-		mapply ( function ( THIS.COV , THIS.TMAT ) 
-			ZStats ( gvs , var , THIS.COV , THIS.TMAT ) , 
+	reg.Z.scores <- mapply ( function ( COV , TMAT )
+		mapply ( function ( THIS.COV , THIS.TMAT )
+			ZStats ( gvs , var , THIS.COV , THIS.TMAT ) ,
 			THIS.COV = COV , THIS.TMAT = TMAT ) ,
 		COV = regional.off.center.cov.mats , TMAT = regional.off.center.T.mats
 	)
 	## individual Z scores
-	ind.Z.scores <- mapply ( function ( THIS.COV , THIS.TMAT ) 
-		ZStats ( gvs , var , THIS.COV , THIS.TMAT ) , 
-		THIS.COV = individual.off.center.cov.mats , THIS.TMAT = individual.off.center.T.mats 
+	ind.Z.scores <- mapply ( function ( THIS.COV , THIS.TMAT )
+		ZStats ( gvs , var , THIS.COV , THIS.TMAT ) ,
+		THIS.COV = individual.off.center.cov.mats , THIS.TMAT = individual.off.center.T.mats
 	)
-	return ( list ( Qx = Qx , Fst.comp = Fst.comp , LD.component = LD.comp , betas = betas , pearson.rs = pearson.rs , spearman.rhos = spearman.rhos , reg.Z = reg.Z.scores , ind.Z = ind.Z.scores ) ) 
+	return ( list ( Qx = Qx , Fst.comp = Fst.comp , LD.component = LD.comp , betas = betas , pearson.rs = pearson.rs , spearman.rhos = spearman.rhos , reg.Z = reg.Z.scores , ind.Z = ind.Z.scores ) )
 }
 ZStats <- function ( gvs , var , cov.mat , T.mat ) {
 	#recover()
@@ -293,10 +294,10 @@ ZStats <- function ( gvs , var , cov.mat , T.mat ) {
 	cond.dist <- condNormal ( gvs [ conditioned ] , rep ( mean ( gvs [ - need ] ) , length ( gvs ) - 1 ) , var * cov.mat , shift.conditioned , shift.need )
 	my.Z <- ( sum ( gvs [ need ] ) - sum ( cond.dist$condMean ) ) / sqrt ( sum ( cond.dist$condVar ) )
 	return ( my.Z )
-	
+
 }
 condNormal <- function(x.given, mu, sigma, given.ind, req.ind){
-	# Returns conditional mean and variance of x[req.ind] 
+	# Returns conditional mean and variance of x[req.ind]
 	# Given x[given.ind] = x.given
 	# where X is multivariate Normal with
 	# mean = mu and covariance = sigma
@@ -311,37 +312,38 @@ condNormal <- function(x.given, mu, sigma, given.ind, req.ind){
 }
 
 SampleCovSNPs <- function ( gwas.data , match.pop , pop.names , bin.names , SNPs.per.cycle , cycles , path , full.dataset.file , env.var.data ) {
-	
+	print("SampleCovSNPs")
 	#recover()
 	num.pops <- length ( pop.names )
 	#T.mat <- matrix ( rep ( c ( ( num.pops - 1 ) / num.pops , rep ( - 1 / ( num.pops ) , times = num.pops ) ) , times = num.pops ) , ncol = num.pops , nrow = num.pops )
-	gwas.cont.table <- table ( gwas.data [ , bin.names ] ) 
+	gwas.cont.table <- table ( gwas.data [ , bin.names ] )
 	my.cov.bins <- which ( gwas.cont.table != 0 )
 	total.cov.reps <- ceiling ( 5000 / nrow ( gwas.data ) )
-	this.many <- total.cov.reps * gwas.cont.table	
-	
-	
-	
+	this.many <- total.cov.reps * gwas.cont.table
+
+
+
 	snp.by.pop <- list ()
 	epsilon.cov.snps <- list ()
 	var.cov.snps <- list ()
 	scaled.snp.by.pop <- list ()
 	uncentered.cov.mat <- list ()
 	for ( k in 1 : cycles ) {
+        print(k)
 		sampled.SNPs <- list ()
-		j = 1 
+		j = 1
 		for ( BIN in my.cov.bins ) {
 			this.many [ BIN ]
 			this.bin <- mapply ( function ( x , y ) x [ y ] ,
 			x = dimnames ( gwas.cont.table ) , y = arrayInd ( BIN , dim ( this.many ) ) , SIMPLIFY = FALSE )
 			in.this.bin <- list ()
 			for ( i in 1 : length ( this.bin ) ) {
-				in.this.bin [[ i ]] <- match.pop [ , bin.names [ i ] ] %in% this.bin [ i ] 
+				in.this.bin [[ i ]] <- match.pop [ , bin.names [ i ] ] %in% this.bin [ i ]
 			}
 			in.this.bin <- do.call ( cbind , in.this.bin )
 			matched.SNPs <- match.pop [ rowSums ( in.this.bin ) == length ( bin.names ) , ]$SNP
 			sampled.SNPs [[ j ]] <- as.character ( sample ( matched.SNPs , this.many [ BIN ] , replace = T ) )
-			j = j + 1 	
+			j = j + 1
 		}
 		sampled.SNPs.count <- table ( unlist ( sampled.SNPs ) )
 		sampled.SNPs <- unlist ( sampled.SNPs )
@@ -352,19 +354,19 @@ SampleCovSNPs <- function ( gwas.data , match.pop , pop.names , bin.names , SNPs
 		colnames ( sampled.cov.data ) <- c ( "SNP" , "CLST" , "A1" , "A2" , "FRQ" )
 		sampled.cov.data <- sampled.cov.data [ sampled.cov.data$CLST %in% env.var.data[[1]]$CLST , ]
 		sampled.cov.data$FRQ <- as.numeric ( sampled.cov.data$FRQ )
-		#sampled.SNPs <- read.table ( paste ( path , "/cov.SNPs" , k , sep = "" ) , stringsAsFactors = F ) 
+		#sampled.SNPs <- read.table ( paste ( path , "/cov.SNPs" , k , sep = "" ) , stringsAsFactors = F )
 		sampled.cov.data <- sampled.cov.data [ with ( sampled.cov.data , order ( SNP , CLST ) ) , ]
 		split.sampled.cov.data <- split ( sampled.cov.data$FRQ , sampled.cov.data$SNP )
 		cov.freqs <- mapply ( rep , x = split.sampled.cov.data , times = sampled.SNPs.count )
 		snp.by.pop [[ k ]] <- t ( matrix ( unlist ( cov.freqs ) , nrow = num.pops ) )
 		epsilon.cov.snps [[ k ]] <- apply ( snp.by.pop [[ k ]] , 1 , mean )
-		
+
 		# average of ratios
 		var.cov.snps [[ k ]] <- epsilon.cov.snps [[ k ]] * ( 1 - epsilon.cov.snps [[ k ]] )
 		scaled.snp.by.pop [[ k ]] <- snp.by.pop [[ k ]] / c ( sqrt ( var.cov.snps [[ k ]] ))
 		uncentered.cov.mat [[ k ]] <- cov ( scaled.snp.by.pop [[ k ]] )
 	}
-	
+
 	#recover()
 	uncentered.cov.mat <- Reduce ( "+" , uncentered.cov.mat)/cycles
 	save ( uncentered.cov.mat , file = paste ( path , "/uncenteredcovmat.Rdata" , sep = "" ) )
@@ -372,7 +374,7 @@ SampleCovSNPs <- function ( gwas.data , match.pop , pop.names , bin.names , SNPs
 }
 
 MatchAlleles <- function ( gwas.data , assoc.loci.freqs ) {
-	
+
 	#protect <- gwas.data
 	#protect -> gwas.data
 	correct.orientation <- subset ( assoc.loci.freqs , CLST == assoc.loci.freqs$CLST [ 1 ] )
@@ -382,7 +384,7 @@ MatchAlleles <- function ( gwas.data , assoc.loci.freqs ) {
 	if ( nrow ( gwas.data ) != nrow ( correct.orientation ) ) {
 		stop ( "GWAS dataset and Orientation Matching dataset contain differing numbers of SNPs" )
 	}
-	
+
 	flip <- gwas.data$A1 == correct.orientation$A2 & gwas.data$A2 == correct.orientation$A1
 	dont.flip <- gwas.data$A1 == correct.orientation$A1 & gwas.data$A2 == correct.orientation$A2
 	for ( i in 1 : nrow ( gwas.data ) ) {
@@ -394,13 +396,12 @@ MatchAlleles <- function ( gwas.data , assoc.loci.freqs ) {
 		} else if ( dont.flip [ i ] ) {
 			#do nothing
 		} else {
-			stop ( "Strand Issue")		
+			stop ( "Strand Issue")
 		}
 	}
 	# if ( sum ( flip ) != 0 ) {
 		# cat ( "The following allele orientations were flipped:\n" , file = log.file )
-		# cat ( c ( gwas.data [ flip , "SNP" ] ) , sep = "\n" , file = log.file )	
+		# cat ( c ( gwas.data [ flip , "SNP" ] ) , sep = "\n" , file = log.file )
 	# }
 	return ( gwas.data )
 }
-
